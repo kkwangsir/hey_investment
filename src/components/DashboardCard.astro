@@ -1,0 +1,53 @@
+---
+export interface Props {
+  label: string;
+  value: string | number;
+  is_percent?: boolean;
+}
+
+const { label, value, is_percent = false } = Astro.props;
+
+const formattedValue = is_percent
+  ? `${typeof value === 'number' ? value.toFixed(1) : value}%`
+  : String(value);
+
+const isNegative = typeof value === 'number' && value < 0;
+---
+
+<div class="dashboard-card">
+  <div class="label">{label}</div>
+  <div class="value" data-negative={isNegative}>{formattedValue}</div>
+</div>
+
+<style>
+  .dashboard-card {
+    background: #16213e;
+    border: 1px solid #0f3460;
+    border-radius: 12px;
+    padding: 1.25rem;
+    text-align: center;
+    transition: border-color 0.2s;
+  }
+
+  .dashboard-card:hover {
+    border-color: #00b894;
+  }
+
+  .label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #636e72;
+    margin-bottom: 0.5rem;
+  }
+
+  .value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #dfe6e9;
+  }
+
+  .value[data-negative="true"] {
+    color: #e17055;
+  }
+</style>

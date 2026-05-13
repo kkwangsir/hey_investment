@@ -1,0 +1,93 @@
+---
+export interface Props {
+  equityCurve: Array<{ date: string; equity: number; benchmark: number }>;
+}
+const { equityCurve } = Astro.props;
+---
+
+<div class="card chart-container">
+  <h2>Equity Curve</h2>
+  <canvas id="equityCurveChart"></canvas>
+</div>
+
+<script>
+  const data = JSON.parse('<%- JSON.stringify(equityCurve) %>');
+
+  const labels = data.map((d) => d.date);
+  const strategy = data.map((d) => d.equity);
+  const benchmark = data.map((d) => d.benchmark);
+
+  new Chart(document.getElementById('equityCurveChart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Strategy',
+          data: strategy,
+          borderColor: '#00b894',
+          backgroundColor: 'rgba(0, 184, 148, 0.05)',
+          borderWidth: 2,
+          tension: 0.3,
+          fill: false,
+          pointRadius: 3,
+          pointHoverRadius: 6,
+        },
+        {
+          label: 'SPY Benchmark',
+          data: benchmark,
+          borderColor: '#636e72',
+          borderDash: [5, 5],
+          borderWidth: 2,
+          tension: 0.3,
+          fill: false,
+          pointRadius: 2,
+          pointHoverRadius: 4,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: {
+          labels: { color: '#b2bec3', usePointStyle: true },
+        },
+        tooltip: {
+          backgroundColor: '#16213e',
+          titleColor: '#dfe6e9',
+          bodyColor: '#b2bec3',
+          borderColor: '#0f3460',
+          borderWidth: 1,
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: $${ctx.parsed.y.toLocaleString()}`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: '#636e72', maxRotation: 45 },
+          grid: { color: 'rgba(99, 110, 114, 0.15)' },
+        },
+        y: {
+          ticks: {
+            color: '#636e72',
+            callback: (v) => '$' + v.toLocaleString(),
+          },
+          grid: { color: 'rgba(99, 110, 114, 0.15)' },
+        },
+      },
+    },
+  });
+</script>
+
+<style>
+  .chart-container {
+    padding: 1.5rem;
+  }
+  .chart-container canvas {
+    width: 100%;
+    height: 400px;
+  }
+</style>

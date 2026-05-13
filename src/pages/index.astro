@@ -1,0 +1,56 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import DashboardCard from '../components/DashboardCard.astro';
+import EquityCurve from '../components/EquityCurve.astro';
+import DrawdownChart from '../components/DrawdownChart.astro';
+import TradesTable from '../components/TradesTable.astro';
+import MonthlyReturns from '../components/MonthlyReturns.astro';
+import backtestData from '../data/backtest.json';
+
+const { summary, equity_curve, drawdown, monthly_returns, trades } = backtestData;
+---
+
+<BaseLayout>
+  <!-- Dashboard Cards Row -->
+  <div class="cards-grid">
+    <DashboardCard label="Total Return" value={summary.total_return} is_percent={true} />
+    <DashboardCard label="Annual Return" value={summary.annual_return} is_percent={true} />
+    <DashboardCard label="Sharpe Ratio" value={summary.sharpe_ratio} />
+    <DashboardCard label="Max Drawdown" value={summary.max_drawdown} is_percent={true} />
+    <DashboardCard label="Win Rate" value={summary.win_rate} is_percent={true} />
+    <DashboardCard label="Total Trades" value={summary.total_trades} />
+  </div>
+
+  <!-- Equity Curve -->
+  <div class="section">
+    <EquityCurve equityCurve={equity_curve} />
+  </div>
+
+  <!-- Drawdown -->
+  <div class="section">
+    <DrawdownChart drawdown={drawdown} />
+  </div>
+
+  <!-- Monthly Returns -->
+  <div class="section">
+    <MonthlyReturns monthlyReturns={monthly_returns} />
+  </div>
+
+  <!-- Trades -->
+  <div class="section">
+    <TradesTable trades={trades} />
+  </div>
+</BaseLayout>
+
+<style>
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .section {
+    margin-bottom: 2rem;
+  }
+</style>

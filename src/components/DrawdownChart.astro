@@ -1,0 +1,87 @@
+---
+export interface Props {
+  drawdown: Array<{ date: string; drawdown_pct: number }>;
+}
+const { drawdown } = Astro.props;
+---
+
+<div class="card chart-container">
+  <h2>Drawdown</h2>
+  <canvas id="drawdownChart"></canvas>
+</div>
+
+<script>
+  const data = JSON.parse('<%- JSON.stringify(drawdown) %>');
+
+  const labels = data.map((d) => d.date);
+  const values = data.map((d) => d.drawdown_pct);
+  const minDD = Math.min(...values);
+  const minDDIndex = values.indexOf(minDD);
+
+  new Chart(document.getElementById('drawdownChart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Drawdown',
+          data: values,
+          borderColor: '#e17055',
+          backgroundColor: 'rgba(225, 112, 85, 0.3)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.3,
+          pointRadius: (ctx) => (ctx.dataIndex === minDDIndex ? 8 : 3),
+          pointBackgroundColor: (ctx) =>
+            ctx.dataIndex === minDDIndex ? '#e17055' : '#e17055',
+          pointBorderColor: (ctx) =>
+            ctx.dataIndex === minDDIndex ? '#ffffff' : '#e17055',
+          pointBorderWidth: (ctx) =>
+            ctx.dataIndex === minDDIndex ? 2 : 1,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#16213e',
+          titleColor: '#dfe6e9',
+          bodyColor: '#b2bec3',
+          borderColor: '#0f3460',
+          borderWidth: 1,
+          callbacks: {
+            label: (ctx) => `${ctx.parsed.y.toFixed(2)}%`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: '#636e72', maxRotation: 45 },
+          grid: { color: 'rgba(99, 110, 114, 0.15)' },
+        },
+        y: {
+          ticks: {
+            color: '#636e72',
+            callback: (v) => v + '%',
+          },
+          grid: { color: 'rgba(99, 110, 114, 0.15)' },
+          reverse: false,
+        },
+      },
+    },
+  });
+</script>
+
+<style>
+  .chart-container {
+    padding: 1.5rem;
+  }
+  .chart-container canvas {
+    width: 100%;
+    height: 300px;
+  }
+</style>

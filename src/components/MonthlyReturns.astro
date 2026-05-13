@@ -1,0 +1,140 @@
+---
+export interface Props {
+  monthlyReturns: Array<{ year: number; month: number; return_pct: number }>;
+}
+const { monthlyReturns } = Astro.props;
+
+// Group by year
+const byYear: Record<number, Record<number, number>> = {};
+for (const mr of monthlyReturns) {
+  if (!byYear[mr.year]) byYear[mr.year] = {};
+  byYear[mr.year][mr.month] = mr.return_pct;
+}
+
+const years = Object.keys(byYear)
+  .map(Number)
+  .sort((a, b) => a - b);
+
+const monthNames = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+function ytdReturn(year: number): number {
+  let total = 0;
+  for (let m = 1; m <= 12; m++) {
+    if (byYear[year]?.[m] !== undefined) {
+      total += byYear[year][m];
+    }
+  }
+  return total;
+}
+---
+
+<div class="card monthly-grid-section">
+  <h2>Monthly Returns</h2>
+  <div class="table-wrapper">
+    <table class="monthly-table">
+      <thead>
+        <tr>
+          <th>Year</th>
+          {monthNames.map((name) => <th>{name}</th>)}
+          <th>YTD</th>
+        </tr>
+      </thead>
+      <tbody>
+        {years.map((year) => {
+          const ytd = ytdReturn(year);
+          return (
+            <tr>
+              <td class="year-cell">{year}</td>
+              {monthNames.map((_, idx) => {
+                const month = idx + 1;
+                const val = byYear[year]?.[month];
+                const display = val !== undefined ? val : null;
+                const isPos = display !== null && display > 0;
+                const isNeg = display !== null && display < 0;
+                return (
+                  <td
+                    class={`month-cell ${isPos ? 'positive' : ''} ${isNeg ? 'negative' : ''} ${display === null ? 'empty' : ''}`}
+                  >
+                    {display !== null ? `${display >= 0 ? '+' : ''}${display.toFixed(1)}%` : '—'}
+                  </td>
+                );
+              })}
+              <td class={`ytd-cell ${ytd > 0 ? 'positive' : ytd < 0 ? 'negative' : ''}`}>
+                {ytd >= 0 ? '+' : ''}{ytd.toFixed(1)}%
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<style>
+  .table-wrapper {
+    overflow-x: auto;
+  }
+
+  .monthly-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+
+  th {
+    background: #0f3460;
+    color: #b2bec3;
+    padding: 0.6rem 0.4rem;
+    text-align: center;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 0.5rem 0.3rem;
+    text-align: center;
+    border-bottom: 1px solid rgba(15, 52, 96, 0.5);
+    white-space: nowrap;
+  }
+
+  .year-cell {
+    font-weight: 700;
+    color: #dfe6e9;
+    text-align: left;
+    padding-left: 0.75rem;
+  }
+
+  .month-cell {
+    font-weight: 600;
+  }
+
+  .month-cell.positive {
+    background: rgba(0, 184, 148, 0.2);
+    color: #00b894;
+  }
+
+  .month-cell.negative {
+    background: rgba(225, 112, 85, 0.2);
+    color: #e17055;
+  }
+
+  .month-cell.empty {
+    color: #636e72;
+  }
+
+  .ytd-cell {
+    font-weight: 700;
+    border-left: 2px solid #0f3460;
+  }
+
+  .ytd-cell.positive {
+    color: #00b894;
+  }
+
+  .ytd-cell.negative {
+    color: #e17055;
+  }
+</style>

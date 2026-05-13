@@ -1,0 +1,209 @@
+---
+export interface Props {
+  trades: Array<{
+    entry_date: string;
+    exit_date: string;
+    symbol: string;
+    direction: string;
+    entry_price: number;
+    exit_price: number;
+    pnl: number;
+    pnl_pct: number;
+    holding_days: number;
+  }>;
+}
+const { trades } = Astro.props;
+---
+
+<div class="card">
+  <h2>Trades</h2>
+  <div class="table-wrapper">
+    <table id="tradesTable">
+      <thead>
+        <tr>
+          <th data-sort="entry_date">Entry Date <span class="sort-icon">⇅</span></th>
+          <th data-sort="exit_date">Exit Date <span class="sort-icon">⇅</span></th>
+          <th data-sort="symbol">Symbol <span class="sort-icon">⇅</span></th>
+          <th data-sort="direction">Direction <span class="sort-icon">⇅</span></th>
+          <th data-sort="entry_price">Entry Price <span class="sort-icon">⇅</span></th>
+          <th data-sort="exit_price">Exit Price <span class="sort-icon">⇅</span></th>
+          <th data-sort="pnl">PnL ($) <span class="sort-icon">⇅</span></th>
+          <th data-sort="pnl_pct">PnL (%) <span class="sort-icon">⇅</span></th>
+          <th data-sort="holding_days">Days <span class="sort-icon">⇅</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {trades.map((t) => (
+          <tr>
+            <td>{t.entry_date}</td>
+            <td>{t.exit_date}</td>
+            <td class="symbol">{t.symbol}</td>
+            <td>
+              <span class={`direction-badge ${t.direction}`}>
+                {t.direction === 'long' ? '▲ Long' : '▼ Short'}
+              </span>
+            </td>
+            <td>${t.entry_price.toFixed(2)}</td>
+            <td>${t.exit_price.toFixed(2)}</td>
+            <td class={t.pnl >= 0 ? 'positive' : 'negative'}>
+              {t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(2)}
+            </td>
+            <td class={t.pnl >= 0 ? 'positive' : 'negative'}>
+              {t.pnl_pct >= 0 ? '+' : ''}{t.pnl_pct.toFixed(2)}%
+            </td>
+            <td>{t.holding_days}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  const table = document.getElementById('tradesTable');
+  const tbody = table.querySelector('tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+
+  // Parse data from rows
+  const tradeData = JSON.parse('<%- JSON.stringify(trades) %>');
+
+  const sortFns = {
+    entry_date: (a, b) => a.entry_date.localeCompare(b.entry_date),
+    exit_date: (a, b) => a.exit_date.localeCompare(b.exit_date),
+    symbol: (a, b) => a.symbol.localeCompare(b.symbol),
+    direction: (a, b) => a.direction.localeCompare(b.direction),
+    entry_price: (a, b) => a.entry_price - b.entry_price,
+    exit_price: (a, b) => a.exit_price - b.exit_price,
+    pnl: (a, b) => a.pnl - b.pnl,
+    pnl_pct: (a, b) => a.pnl_pct - b.pnl_pct,
+    holding_days: (a, b) => a.holding_days - b.holding_days,
+  };
+
+  let currentSort = null;
+  let sortAsc = true;
+
+  // Make sort icons visible only on active column
+  const allIcons = table.querySelectorAll('.sort-icon');
+
+  table.querySelectorAll('th[data-sort]').forEach((th) => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.sort;
+      const fn = sortFns[key];
+
+      if (currentSort === key) {
+        sortAsc = !sortAsc;
+      } else {
+        currentSort = key;
+        sortAsc = true;
+      }
+
+      // Update all sort icons
+      allIcons.forEach((icon) => {
+        icon.textContent = '⇅';
+        icon.style.opacity = '0.4';
+      });
+
+      const icon = th.querySelector('.sort-icon');
+      icon.textContent = sortAsc ? '↑' : '↓';
+      icon.style.opacity = '1';
+
+      tradeData.sort((a, b) => (sortAsc ? fn(a, b) : fn(b, a)));
+      renderRows(tradeData);
+    });
+  });
+
+  function renderRows(data) {
+    tbody.innerHTML = '';
+    for (const t of data) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${t.entry_date}</td>
+        <td>${t.exit_date}</td>
+        <td class="symbol">${t.symbol}</td>
+        <td><span class="direction-badge ${t.direction}">${t.direction === 'long' ? '▲ Long' : '▼ Short'}</span></td>
+        <td>$${t.entry_price.toFixed(2)}</td>
+        <td>$${t.exit_price.toFixed(2)}</td>
+        <td class="${t.pnl >= 0 ? 'positive' : 'negative'}">${t.pnl >= 0 ? '+' : ''}$${t.pnl.toFixed(2)}</td>
+        <td class="${t.pnl >= 0 ? 'positive' : 'negative'}">${t.pnl_pct >= 0 ? '+' : ''}${t.pnl_pct.toFixed(2)}%</td>
+        <td>${t.holding_days}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+</script>
+
+<style>
+  .table-wrapper {
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+
+  th {
+    background: #0f3460;
+    color: #b2bec3;
+    padding: 0.75rem 0.5rem;
+    text-align: left;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+  }
+
+  th:hover {
+    color: #dfe6e9;
+  }
+
+  .sort-icon {
+    opacity: 0.4;
+    font-size: 0.7rem;
+    margin-left: 2px;
+  }
+
+  td {
+    padding: 0.6rem 0.5rem;
+    border-bottom: 1px solid rgba(15, 52, 96, 0.5);
+    white-space: nowrap;
+  }
+
+  tr:hover td {
+    background: rgba(15, 52, 96, 0.3);
+  }
+
+  .symbol {
+    font-weight: 600;
+    color: #dfe6e9;
+  }
+
+  .direction-badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .direction-badge.long {
+    background: rgba(0, 184, 148, 0.15);
+    color: #00b894;
+  }
+
+  .direction-badge.short {
+    background: rgba(225, 112, 85, 0.15);
+    color: #e17055;
+  }
+
+  .positive {
+    color: #00b894;
+    font-weight: 600;
+  }
+
+  .negative {
+    color: #e17055;
+    font-weight: 600;
+  }
+</style>
