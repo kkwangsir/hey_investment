@@ -1,0 +1,282 @@
+/* === Hey Investment — Dark Theme Dashboard === */
+
+:root {
+    --bg-primary: #1a1a2e;
+    --bg-card: #16213e;
+    --bg-accent: #0f3460;
+    --green: #00b894;
+    --green-bg: rgba(0, 184, 148, 0.15);
+    --red: #e17055;
+    --red-bg: rgba(225, 112, 85, 0.15);
+    --text-primary: #e0e0e0;
+    --text-secondary: #a0a0b0;
+    --text-muted: #6c6c80;
+    --border: #2a2a4a;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+/* Nav */
+.navbar {
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 2rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.navbar h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--green);
+    letter-spacing: 0.5px;
+}
+
+/* Layout */
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* Cards Grid */
+.cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    text-align: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.card-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.card-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+}
+
+.card-value.positive {
+    color: var(--green);
+}
+
+.card-value.negative {
+    color: var(--red);
+}
+
+/* Chart Sections */
+.chart-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.chart-section h2 {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+.chart-wrapper {
+    position: relative;
+    width: 100%;
+    max-height: 400px;
+}
+
+.chart-wrapper canvas {
+    width: 100% !important;
+    max-height: 400px;
+}
+
+/* Heatmap Table */
+.heatmap-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    overflow-x: auto;
+}
+
+.heatmap-section h2 {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+.heatmap-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.heatmap-table th,
+.heatmap-table td {
+    padding: 0.6rem 0.8rem;
+    text-align: center;
+    border: 1px solid var(--border);
+}
+
+.heatmap-table th {
+    background: var(--bg-accent);
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.heatmap-table td.positive {
+    background: var(--green-bg);
+    color: var(--green);
+    font-weight: 600;
+}
+
+.heatmap-table td.negative {
+    background: var(--red-bg);
+    color: var(--red);
+    font-weight: 600;
+}
+
+/* Trades Table */
+.trades-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    overflow-x: auto;
+}
+
+.trades-section h2 {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+.trades-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.trades-table th {
+    background: var(--bg-accent);
+    color: var(--text-secondary);
+    padding: 0.7rem 0.8rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    position: relative;
+}
+
+.trades-table th:hover {
+    background: #1a4a7a;
+}
+
+.trades-table th .sort-arrow {
+    margin-left: 4px;
+    opacity: 0.4;
+    font-size: 0.7rem;
+}
+
+.trades-table th.sorted-asc .sort-arrow::after {
+    content: " ▲";
+    opacity: 1;
+}
+
+.trades-table th.sorted-desc .sort-arrow::after {
+    content: " ▼";
+    opacity: 1;
+}
+
+.trades-table td {
+    padding: 0.6rem 0.8rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
+}
+
+.trades-table tbody tr:hover {
+    background: rgba(15, 52, 96, 0.4);
+}
+
+.trades-table td.positive {
+    color: var(--green);
+    font-weight: 600;
+}
+
+.trades-table td.negative {
+    color: var(--red);
+    font-weight: 600;
+}
+
+/* Win/Loss Badge */
+.badge-win {
+    display: inline-block;
+    background: var(--green-bg);
+    color: var(--green);
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.badge-loss {
+    display: inline-block;
+    background: var(--red-bg);
+    color: var(--red);
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem;
+    }
+    .cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .card-value {
+        font-size: 1.3rem;
+    }
+}

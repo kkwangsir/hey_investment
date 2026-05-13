@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hey Investment — Backtest Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="navbar">
+    <div class="container" style="padding: 0;">
+        <h1>📈 Hey Investment</h1>
+    </div>
+</nav>
+
+<div class="container">
+
+    <!-- Summary Cards -->
+    <div class="cards-grid">
+        <div class="card">
+            <div class="card-label">Total Return</div>
+            <div class="card-value {% if summary.total_return >= 0 %}positive{% else %}negative{% endif %}">
+                {{ summary.total_return }}%
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-label">Annual Return</div>
+            <div class="card-value {% if summary.annual_return >= 0 %}positive{% else %}negative{% endif %}">
+                {{ summary.annual_return }}%
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-label">Sharpe Ratio</div>
+            <div class="card-value positive">{{ summary.sharpe_ratio }}</div>
+        </div>
+        <div class="card">
+            <div class="card-label">Max Drawdown</div>
+            <div class="card-value negative">{{ summary.max_drawdown }}%</div>
+        </div>
+        <div class="card">
+            <div class="card-label">Win Rate</div>
+            <div class="card-value positive">{{ summary.win_rate }}%</div>
+        </div>
+        <div class="card">
+            <div class="card-label">Total Trades</div>
+            <div class="card-value">{{ summary.total_trades }}</div>
+        </div>
+    </div>
+
+    <!-- Equity Curve -->
+    <div class="chart-section">
+        <h2>Equity Curve</h2>
+        <div class="chart-wrapper">
+            <canvas id="equityChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Drawdown -->
+    <div class="chart-section">
+        <h2>Drawdown</h2>
+        <div class="chart-wrapper">
+            <canvas id="drawdownChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Monthly Returns Heatmap -->
+    <div class="heatmap-section">
+        <h2>Monthly Returns (%)</h2>
+        <table class="heatmap-table" id="heatmapTable">
+            <thead>
+                <tr>
+                    <th>Year</th>
+                    <th>Jan</th>
+                    <th>Feb</th>
+                    <th>Mar</th>
+                    <th>Apr</th>
+                    <th>May</th>
+                    <th>Jun</th>
+                    <th>Jul</th>
+                    <th>Aug</th>
+                    <th>Sep</th>
+                    <th>Oct</th>
+                    <th>Nov</th>
+                    <th>Dec</th>
+                    <th>YTD</th>
+                </tr>
+            </thead>
+            <tbody id="heatmapBody">
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Trades Table -->
+    <div class="trades-section">
+        <h2>Trades Log</h2>
+        <table class="trades-table" id="tradesTable">
+            <thead>
+                <tr>
+                    <th onclick="sortTable(0)" data-col="0">Ticker <span class="sort-arrow"></span></th>
+                    <th onclick="sortTable(1)" data-col="1">Entry Date <span class="sort-arrow"></span></th>
+                    <th onclick="sortTable(2)" data-col="2">Exit Date <span class="sort-arrow"></span></th>
+                    <th onclick="sortTable(3)" data-col="3">Entry Price <span class="sort-arrow"></span></th>
+                    <th onclick="sortTable(4)" data-col="4">Exit Price <span class="sort-arrow"></span></th>
+                    <th onclick="sortTable(5)" data-col="5">Return % <span class="sort-arrow"></span></th>
+                    <th onclick="sortTable(6)" data-col="6">Holding Days <span class="sort-arrow"></span></th>
+                    <th onclick="sortTable(7)" data-col="7">Result <span class="sort-arrow"></span></th>
+                </tr>
+            </thead>
+            <tbody id="tradesBody">
+                {% for trade in trades %}
+                <tr>
+                    <td><strong>{{ trade.ticker }}</strong></td>
+                    <td>{{ trade.entry_date }}</td>
+                    <td>{{ trade.exit_date }}</td>
+                    <td>${{ "%.2f"|format(trade.entry_price) }}</td>
+                    <td>${{ "%.2f"|format(trade.exit_price) }}</td>
+                    <td class="{% if trade.return_pct >= 0 %}positive{% else %}negative{% endif %}">
+                        {{ "%.2f"|format(trade.return_pct) }}%
+                    </td>
+                    <td>{{ trade.holding_days }}</td>
+                    <td>
+                        {% if trade.win %}
+                        <span class="badge-win">WIN</span>
+                        {% else %}
+                        <span class="badge-loss">LOSS</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+// === Load data and render charts ===
+
+let tradesData = {{ trades|tojson|safe }};
+
+fetch('/api/data')
+    .then(res => res.json())
+    .then(data => {
+        renderEquityChart(data.equity_curve);
+        renderDrawdownChart(data.drawdown);
+        renderHeatmap(data.monthly_returns);
+    })
+    .catch(err => console.error('Failed to load backtest data:', err));
+
+// === Equity Curve ===
+function renderEquityChart(equityData) {
+    const ctx = document.getElementById('equityChart').getContext('2d');
+    const labels = equityData.map(d => d.date);
+    const strategy = equityData.map(d => d.strategy);
+    const spy = equityData.map(d => d.spy);
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Strategy',
+                    data: strategy,
+                    borderColor: '#00b894',
+                    backgroundColor: 'rgba(0, 184, 148, 0.08)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    borderWidth: 2,
+                },
+                {
+                    label: 'SPY',
+                    data: spy,
+                    borderColor: '#6c6c80',
+                    backgroundColor: 'transparent',
+                    borderDash: [6, 3],
+                    tension: 0.3,
+                    pointRadius: 2,
+                    pointHoverRadius: 4,
+                    borderWidth: 2,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: 'index',
+            },
+            plugins: {
+                legend: {
+                    labels: {
+                        color: '#a0a0b0',
+                        font: { size: 12 },
+                        usePointStyle: true,
+                    }
+                },
+                tooltip: {
+                    backgroundColor: '#16213e',
+                    titleColor: '#e0e0e0',
+                    bodyColor: '#a0a0b0',
+                    borderColor: '#2a2a4a',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: function(ctx) {
+                            return ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString();
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        color: '#6c6c80',
+                        maxTicksLimit: 12,
+                        font: { size: 11 }
+                    },
+                    grid: { color: 'rgba(42, 42, 74, 0.5)' }
+                },
+                y: {
+                    ticks: {
+                        color: '#6c6c80',
+                        font: { size: 11 },
+                        callback: function(v) { return '$' + v.toLocaleString(); }
+                    },
+                    grid: { color: 'rgba(42, 42, 74, 0.5)' }
+                }
+            }
+        }
+    });
+}
+
+// === Drawdown ===
+function renderDrawdownChart(drawdownData) {
+    const ctx = document.getElementById('drawdownChart').getContext('2d');
+    const labels = drawdownData.map(d => d.date);
+    const values = drawdownData.map(d => d.drawdown_pct);
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Drawdown',
+                    data: values,
+                    borderColor: '#e17055',
+                    backgroundColor: 'rgba(225, 112, 85, 0.2)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    borderWidth: 2,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: 'index',
+            },
+            plugins: {
+                legend: {
+                    display: false,
+                },
+                tooltip: {
+                    backgroundColor: '#16213e',
+                    titleColor: '#e0e0e0',
+                    bodyColor: '#a0a0b0',
+                    borderColor: '#2a2a4a',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: function(ctx) {
+                            return ctx.parsed.y.toFixed(2) + '%';
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        color: '#6c6c80',
+                        maxTicksLimit: 12,
+                        font: { size: 11 }
+                    },
+                    grid: { color: 'rgba(42, 42, 74, 0.5)' }
+                },
+                y: {
+                    ticks: {
+                        color: '#6c6c80',
+                        font: { size: 11 },
+                        callback: function(v) { return v + '%'; }
+                    },
+                    grid: { color: 'rgba(42, 42, 74, 0.5)' }
+                }
+            }
+        }
+    });
+}
+
+// === Monthly Returns Heatmap ===
+function renderHeatmap(monthlyReturns) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const years = [...new Set(monthlyReturns.map(d => d.year))].sort();
+    const tbody = document.getElementById('heatmapBody');
+
+    years.forEach(year => {
+        const rowData = monthlyReturns.filter(d => d.year === year);
+        const row = document.createElement('tr');
+
+        // Year cell
+        const yearCell = document.createElement('td');
+        yearCell.textContent = year;
+        yearCell.style.fontWeight = '600';
+        row.appendChild(yearCell);
+
+        let ytdSum = 0;
+
+        months.forEach((_, idx) => {
+            const entry = rowData.find(d => d.month === idx + 1);
+            const cell = document.createElement('td');
+            if (entry) {
+                const val = entry.return_pct;
+                ytdSum += val;
+                cell.textContent = val.toFixed(2) + '%';
+                cell.className = val >= 0 ? 'positive' : 'negative';
+            } else {
+                cell.textContent = '-';
+            }
+            row.appendChild(cell);
+        });
+
+        // YTD cell
+        const ytdCell = document.createElement('td');
+        ytdCell.textContent = ytdSum.toFixed(2) + '%';
+        ytdCell.className = ytdSum >= 0 ? 'positive' : 'negative';
+        row.appendChild(ytdCell);
+
+        tbody.appendChild(row);
+    });
+}
+
+// === Sortable Trades Table ===
+let sortDirections = {};
+
+function sortTable(colIndex) {
+    const table = document.getElementById('tradesTable');
+    const tbody = document.getElementById('tradesBody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+
+    // Toggle direction
+    sortDirections[colIndex] = !sortDirections[colIndex];
+    const ascending = sortDirections[colIndex];
+
+    // Update header classes
+    document.querySelectorAll('#tradesTable th').forEach(th => {
+        th.classList.remove('sorted-asc', 'sorted-desc');
+    });
+    const header = document.querySelector(`#tradesTable th[data-col="${colIndex}"]`);
+    if (header) {
+        header.classList.add(ascending ? 'sorted-asc' : 'sorted-desc');
+    }
+
+    rows.sort((a, b) => {
+        let aVal = a.cells[colIndex].innerText.trim();
+        let bVal = b.cells[colIndex].innerText.trim();
+
+        // Try numeric comparison
+        const aNum = parseFloat(aVal.replace(/[$,%]/g, ''));
+        const bNum = parseFloat(bVal.replace(/[$,%]/g, ''));
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+            return ascending ? aNum - bNum : bNum - aNum;
+        }
+
+        // String comparison
+        return ascending
+            ? aVal.localeCompare(bVal)
+            : bVal.localeCompare(aVal);
+    });
+
+    // Reorder DOM
+    rows.forEach(row => tbody.appendChild(row));
+}
+</script>
+
+</body>
+</html>
