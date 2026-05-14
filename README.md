@@ -11,11 +11,11 @@
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-0.115-teal?style=flat-square">
 </picture>
 
-# 📈 Hey Investment — Backtest Dashboard
+# 📈 Hey Investment — DCA Backtest Dashboard
 
-A dark-themed backtest analysis dashboard for quantitative trading strategies. Visualize equity curves, drawdowns, monthly returns, and trade history — all from a single JSON data file.
+A dark-themed **Dollar-Cost Averaging** backtest dashboard for quantitative trading strategies. Download real market data via yfinance, run DCA simulations, and visualize equity curves, drawdowns, monthly returns, and trade history — all from a local SQLite database.
 
-Built with **FastAPI + Jinja2 + Chart.js**, managed with **uv**.
+Built with **FastAPI + Jinja2 + Chart.js**, powered by **SQLite + yfinance**.
 
 ---
 
@@ -23,17 +23,20 @@ Built with **FastAPI + Jinja2 + Chart.js**, managed with **uv**.
 
 | Section | Description |
 |---------|-------------|
-| **Summary Cards** | Total Return, Annual Return, Sharpe Ratio, Max Drawdown, Win Rate, Total Trades |
+| **Data Pipeline** | yfinance-powered download of QQQ/SPY (incremental, auto-adjusted) |
+| **DCA Engine** | Monthly investment, custom allocation, SPY benchmark |
+| **Summary Cards** | Total Return, Annual Return, Sharpe Ratio, Max Drawdown, Total Invested |
 | **Equity Curve** | Strategy performance vs SPY benchmark (interactive Chart.js line chart) |
 | **Drawdown Chart** | Underwater period visualization with max drawdown highlight |
 | **Monthly Returns** | Calendar heatmap — green for gains, red for losses, with YTD totals |
-| **Trades Table** | Sortable by any column — entry date, symbol, PnL, holding days |
+| **Trades Table** | Sortable DCA transaction log — date, ticker, price, shares, amount |
 
 ### Tech Stack
 
 - **Backend:** FastAPI (Python 3.13+)
 - **Frontend:** Jinja2 templates + Chart.js (CDN)
-- **Data:** JSON file — zero database
+- **Database:** SQLite via aiosqlite
+- **Data Source:** Yahoo Finance via yfinance
 - **Package Manager:** [uv](https://docs.astral.sh/uv/)
 
 ---
@@ -52,7 +55,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ```bash
 git clone git@github.com:kkwangsir/hey_investment.git
 cd hey_investment
-uv run python src/app.py
+uv run python -m src.app
 ```
 
 > **Windows users**: Use `python` instead of `python3`. The command above works on both platforms.
@@ -62,7 +65,9 @@ Open [http://localhost:8000](http://localhost:8000) in your browser.
 
 ```
 http://localhost:8000   → Dashboard (HTML)
-http://localhost:8000/api/data → Raw backtest data (JSON)
+http://localhost:8000/api/health → DB health check (JSON)
+http://localhost:8000/api/runs   → List all backtest runs (JSON)
+http://localhost:8000/api/runs/1 → Full backtest data (JSON)
 ```
 
 ### Makefile 快捷命令
@@ -75,12 +80,17 @@ http://localhost:8000/api/data → Raw backtest data (JSON)
 | `make dev` | 热重载模式启动 |
 | `make install` | 安装依赖 |
 | `make clean` | 清理缓存 |
-| `make data` | 查看回测数据摘要 |
+| `make download` | 下载 QQQ/SPY 市场数据 |
+| `make backtest` | 运行默认 DCA 回测 |
+| `make refresh` | 下载 + 回测一键完成 |
+| `make info` | 查看项目信息与数据库统计 |
 | `make help` | 显示所有命令 |
 
 ```bash
-make run     # 启动
-make help    # 查看全部
+make download   # 下载数据
+make backtest   # 运行回测
+make run        # 启动仪表盘
+make help       # 查看全部
 ```
 
 > 💡 Windows 用户需要安装 `make`（`choco install make` 或通过 WSL）
@@ -92,9 +102,12 @@ make help    # 查看全部
 ```
 hey_investment/
 ├── src/
-│   ├── app.py                 # FastAPI application
+│   ├── app.py                 # FastAPI application + REST API
+│   ├── db.py                  # Database layer (SQLite + aiosqlite)
+│   ├── pipeline.py            # Data pipeline (yfinance downloader)
+│   ├── engine.py              # DCA backtest engine
 │   ├── templates/index.html   # Dashboard template with Chart.js
-│   └── data/backtest.json     # Sample backtest results
+│   └── data/hey_investment.db # SQLite database
 ├── static/style.css           # Dark theme styles
 ├── pyproject.toml             # uv project configuration
 ├── Makefile                   # 快捷命令（make run/dev/clean）
@@ -104,42 +117,30 @@ hey_investment/
 ```
 ---
 
-## 📊 Data Format
+## 📊 Database Schema
 
-Replace `src/data/backtest.json` with your own data. The expected schema:
+Data is stored in a local SQLite database (`src/data/hey_investment.db`). Key tables:
+
+| Table | Description |
+|-------|-------------|
+| `tickers` | ETF/stock metadata (QQQ, SPY) |
+| `daily_prices` | Historical price data (open, high, low, close, adj_close, volume) |
+| `strategies` | DCA strategy configurations |
+| `backtest_runs` | Backtest execution records with JSON result |
+| `portfolio_snapshots` | Periodic portfolio value snapshots |
+| `transactions` | Individual buy/sell transactions |
+
+### API Response Format
+
+The `/api/runs/{run_id}` endpoint returns JSON compatible with Chart.js:
 
 ```json
 {
-  "summary": {
-    "total_return": 30.7,
-    "annual_return": 14.3,
-    "sharpe_ratio": 1.17,
-    "max_drawdown": -14.8,
-    "win_rate": 60,
-    "total_trades": 15,
-    "avg_holding_days": 20.9
-  },
-  "equity_curve": [
-    { "date": "2024-01-01", "strategy": 10000, "spy": 10000 }
-  ],
-  "drawdown": [
-    { "date": "2024-01-01", "drawdown_pct": 0 }
-  ],
-  "monthly_returns": [
-    { "year": 2024, "month": 1, "return_pct": 3.0 }
-  ],
-  "trades": [
-    {
-      "ticker": "NVDA",
-      "entry_date": "2024-01-15",
-      "exit_date": "2024-02-10",
-      "entry_price": 480.25,
-      "exit_price": 525.50,
-      "return_pct": 9.42,
-      "holding_days": 26,
-      "win": true
-    }
-  ]
+  "summary": { "total_return", "annual_return", "sharpe_ratio", "max_drawdown", ... },
+  "equity_curve": [{"date", "strategy", "spy"}],
+  "drawdown": [{"date", "drawdown_pct"}],
+  "monthly_returns": [{"year", "month", "return_pct"}],
+  "trades": [{"date", "ticker", "side", "price", "shares", "amount"}]
 }
 ```
 
@@ -150,9 +151,10 @@ Replace `src/data/backtest.json` with your own data. The expected schema:
 See [ROADMAP.md](ROADMAP.md) for planned features.
 
 1. ✅ **Phase 1** — Dashboard skeleton with sample data
-2. 🔄 **Phase 2** — Real backtest data pipeline
-3. ⏳ **Phase 3** — Interactive filters & advanced charts
-4. ⏳ **Phase 4** — Docker deployment
+2. ✅ **Phase 2** — Real backtest data pipeline (yfinance + SQLite)
+3. ✅ **Phase 3** — DCA backtest engine
+4. ⏳ **Phase 4** — Interactive filters & advanced charts
+5. ⏳ **Phase 5** — Docker deployment
 
 ---
 

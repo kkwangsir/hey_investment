@@ -16,7 +16,7 @@ sync: install
 
 ## 🚀 启动开发服务器 (http://localhost:8000)
 run:
-	$(UV) run $(PYTHON) src/app.py
+	$(UV) run python -m src.app
 
 ## ♻️ 启动带热重载的开发服务器
 dev:
@@ -42,9 +42,9 @@ clean:
 	find . -type f -name "*.pyc" -delete
 	find . -type d -name "__pycache__" -empty -delete
 
-## 📊 查看回测数据摘要
+## 📊 查看数据库统计（别名：make info）
 data:
-	$(UV) run python -c "import json; d=json.load(open('src/data/backtest.json')); s=d['summary']; print(f\"总收益: {s['total_return']}% | 年化: {s['annual_return']}% | Sharpe: {s['sharpe_ratio']} | MDD: {s['max_drawdown']}% | 胜率: {s['win_rate']}% | 交易: {s['total_trades']}笔\")"
+	$(MAKE) info
 
 ## ℹ️ 项目信息
 info:
@@ -53,7 +53,19 @@ info:
 	@echo "uv:      $$($(UV) --version 2>&1)"
 	@echo "FastAPI: $$($(UV) run python -c 'import fastapi; print(fastapi.__version__)' 2>&1)"
 	@echo "Port:    $(PORT)"
+	@$(UV) run python -c "import sqlite3; from src.db import DB_PATH; c=sqlite3.connect(str(DB_PATH)); print('DB:', DB_PATH); [print(f'  {t}:', c.execute(f'SELECT COUNT(*) FROM {t}').fetchone()[0], 'rows') for t in ['tickers','daily_prices','strategies','backtest_runs','portfolio_snapshots','transactions']]; c.close()"
 	@echo ""
+
+## 📥 下载市场数据（QQQ/SPY）
+download:
+	$(UV) run python -m src.pipeline
+
+## 📈 运行默认 DCA 回测
+backtest:
+	$(UV) run python -m src.engine
+
+## 🔄 一键刷新：下载 + 回测
+refresh: download backtest
 
 ## 📖 显示帮助（默认）
 help:

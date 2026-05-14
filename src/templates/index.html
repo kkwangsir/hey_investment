@@ -3,162 +3,226 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hey Investment — Backtest Dashboard</title>
+    <title>Hey Investment — DCA Backtest Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #6c6c80;
+        }
+        .empty-state h2 {
+            font-size: 1.8rem;
+            margin-bottom: 16px;
+            color: #a0a0b0;
+        }
+        .empty-state code {
+            background: #1a1a2e;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 1rem;
+            color: #00b894;
+        }
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #6c6c80;
+            font-size: 1.2rem;
+        }
+        .loading::after {
+            content: "...";
+            animation: dots 1.5s steps(4) infinite;
+        }
+        @keyframes dots {
+            0%, 20% { content: "."; }
+            40% { content: ".."; }
+            60%, 100% { content: "..."; }
+        }
+        .badge-buy {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: rgba(0, 184, 148, 0.15);
+            color: #00b894;
+        }
+        .badge-sell {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: rgba(225, 112, 85, 0.15);
+            color: #e17055;
+        }
+        .dashboard-content { display: none; }
+        .dashboard-content.visible { display: block; }
+    </style>
 </head>
 <body>
 
 <!-- Nav -->
 <nav class="navbar">
     <div class="container" style="padding: 0;">
-        <h1>📈 Hey Investment</h1>
+        <h1>📈 Hey Investment — DCA Backtest</h1>
     </div>
 </nav>
 
 <div class="container">
 
-    <!-- Summary Cards -->
-    <div class="cards-grid">
-        <div class="card">
-            <div class="card-label">Total Return</div>
-            <div class="card-value {% if summary.total_return >= 0 %}positive{% else %}negative{% endif %}">
-                {{ summary.total_return }}%
+    <!-- Loading state -->
+    <div id="loadingState" class="loading">Loading dashboard</div>
+
+    <!-- Empty state -->
+    <div id="emptyState" class="empty-state" style="display:none;">
+        <h2>暂无回测数据</h2>
+        <p>运行 <code>make download && make backtest</code> 来开始</p>
+    </div>
+
+    <!-- Dashboard content (hidden until data loads) -->
+    <div id="dashboardContent" class="dashboard-content">
+
+        <!-- Summary Cards -->
+        <div class="cards-grid" id="summaryCards"></div>
+
+        <!-- Equity Curve -->
+        <div class="chart-section">
+            <h2>Equity Curve</h2>
+            <div class="chart-wrapper">
+                <canvas id="equityChart"></canvas>
             </div>
         </div>
-        <div class="card">
-            <div class="card-label">Annual Return</div>
-            <div class="card-value {% if summary.annual_return >= 0 %}positive{% else %}negative{% endif %}">
-                {{ summary.annual_return }}%
+
+        <!-- Drawdown -->
+        <div class="chart-section">
+            <h2>Drawdown</h2>
+            <div class="chart-wrapper">
+                <canvas id="drawdownChart"></canvas>
             </div>
         </div>
-        <div class="card">
-            <div class="card-label">Sharpe Ratio</div>
-            <div class="card-value positive">{{ summary.sharpe_ratio }}</div>
-        </div>
-        <div class="card">
-            <div class="card-label">Max Drawdown</div>
-            <div class="card-value negative">{{ summary.max_drawdown }}%</div>
-        </div>
-        <div class="card">
-            <div class="card-label">Win Rate</div>
-            <div class="card-value positive">{{ summary.win_rate }}%</div>
-        </div>
-        <div class="card">
-            <div class="card-label">Total Trades</div>
-            <div class="card-value">{{ summary.total_trades }}</div>
-        </div>
-    </div>
 
-    <!-- Equity Curve -->
-    <div class="chart-section">
-        <h2>Equity Curve</h2>
-        <div class="chart-wrapper">
-            <canvas id="equityChart"></canvas>
+        <!-- Monthly Returns Heatmap -->
+        <div class="heatmap-section">
+            <h2>Monthly Returns (%)</h2>
+            <table class="heatmap-table" id="heatmapTable">
+                <thead>
+                    <tr>
+                        <th>Year</th>
+                        <th>Jan</th>
+                        <th>Feb</th>
+                        <th>Mar</th>
+                        <th>Apr</th>
+                        <th>May</th>
+                        <th>Jun</th>
+                        <th>Jul</th>
+                        <th>Aug</th>
+                        <th>Sep</th>
+                        <th>Oct</th>
+                        <th>Nov</th>
+                        <th>Dec</th>
+                        <th>YTD</th>
+                    </tr>
+                </thead>
+                <tbody id="heatmapBody">
+                </tbody>
+            </table>
         </div>
-    </div>
 
-    <!-- Drawdown -->
-    <div class="chart-section">
-        <h2>Drawdown</h2>
-        <div class="chart-wrapper">
-            <canvas id="drawdownChart"></canvas>
+        <!-- Trades Table -->
+        <div class="trades-section">
+            <h2>DCA Transactions</h2>
+            <table class="trades-table" id="tradesTable">
+                <thead>
+                    <tr>
+                        <th onclick="sortTable(0)" data-col="0">Date <span class="sort-arrow"></span></th>
+                        <th onclick="sortTable(1)" data-col="1">Ticker <span class="sort-arrow"></span></th>
+                        <th onclick="sortTable(2)" data-col="2">Side <span class="sort-arrow"></span></th>
+                        <th onclick="sortTable(3)" data-col="3">Price <span class="sort-arrow"></span></th>
+                        <th onclick="sortTable(4)" data-col="4">Shares <span class="sort-arrow"></span></th>
+                        <th onclick="sortTable(5)" data-col="5">Amount <span class="sort-arrow"></span></th>
+                    </tr>
+                </thead>
+                <tbody id="tradesBody">
+                </tbody>
+            </table>
         </div>
-    </div>
 
-    <!-- Monthly Returns Heatmap -->
-    <div class="heatmap-section">
-        <h2>Monthly Returns (%)</h2>
-        <table class="heatmap-table" id="heatmapTable">
-            <thead>
-                <tr>
-                    <th>Year</th>
-                    <th>Jan</th>
-                    <th>Feb</th>
-                    <th>Mar</th>
-                    <th>Apr</th>
-                    <th>May</th>
-                    <th>Jun</th>
-                    <th>Jul</th>
-                    <th>Aug</th>
-                    <th>Sep</th>
-                    <th>Oct</th>
-                    <th>Nov</th>
-                    <th>Dec</th>
-                    <th>YTD</th>
-                </tr>
-            </thead>
-            <tbody id="heatmapBody">
-            </tbody>
-        </table>
     </div>
-
-    <!-- Trades Table -->
-    <div class="trades-section">
-        <h2>Trades Log</h2>
-        <table class="trades-table" id="tradesTable">
-            <thead>
-                <tr>
-                    <th onclick="sortTable(0)" data-col="0">Ticker <span class="sort-arrow"></span></th>
-                    <th onclick="sortTable(1)" data-col="1">Entry Date <span class="sort-arrow"></span></th>
-                    <th onclick="sortTable(2)" data-col="2">Exit Date <span class="sort-arrow"></span></th>
-                    <th onclick="sortTable(3)" data-col="3">Entry Price <span class="sort-arrow"></span></th>
-                    <th onclick="sortTable(4)" data-col="4">Exit Price <span class="sort-arrow"></span></th>
-                    <th onclick="sortTable(5)" data-col="5">Return % <span class="sort-arrow"></span></th>
-                    <th onclick="sortTable(6)" data-col="6">Holding Days <span class="sort-arrow"></span></th>
-                    <th onclick="sortTable(7)" data-col="7">Result <span class="sort-arrow"></span></th>
-                </tr>
-            </thead>
-            <tbody id="tradesBody">
-                {% for trade in trades %}
-                <tr>
-                    <td><strong>{{ trade.ticker }}</strong></td>
-                    <td>{{ trade.entry_date }}</td>
-                    <td>{{ trade.exit_date }}</td>
-                    <td>${{ "%.2f"|format(trade.entry_price) }}</td>
-                    <td>${{ "%.2f"|format(trade.exit_price) }}</td>
-                    <td class="{% if trade.return_pct >= 0 %}positive{% else %}negative{% endif %}">
-                        {{ "%.2f"|format(trade.return_pct) }}%
-                    </td>
-                    <td>{{ trade.holding_days }}</td>
-                    <td>
-                        {% if trade.win %}
-                        <span class="badge-win">WIN</span>
-                        {% else %}
-                        <span class="badge-loss">LOSS</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
 </div>
 
 <script>
-// === Load data and render charts ===
+// === Load data from API ===
+let runData = null;
 
-let tradesData = {{ trades|tojson|safe }};
+async function loadDashboard() {
+    try {
+        // 1. Get latest run id
+        const latestResp = await fetch('/api/runs/latest');
+        const latest = await latestResp.json();
 
-fetch('/api/data')
-    .then(res => res.json())
-    .then(data => {
-        renderEquityChart(data.equity_curve);
-        renderDrawdownChart(data.drawdown);
-        renderHeatmap(data.monthly_returns);
-    })
-    .catch(err => console.error('Failed to load backtest data:', err));
+        if (!latest.has_data) {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'block';
+            return;
+        }
+
+        // 2. Get full run data
+        const runResp = await fetch(`/api/runs/${latest.run_id}`);
+        runData = await runResp.json();
+
+        // 3. Render everything
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('dashboardContent').classList.add('visible');
+
+        renderSummary(runData.summary);
+        renderEquityChart(runData.equity_curve);
+        renderDrawdownChart(runData.drawdown);
+        renderHeatmap(runData.monthly_returns);
+        renderTrades(runData.trades);
+
+    } catch (err) {
+        console.error('Failed to load dashboard:', err);
+        document.getElementById('loadingState').textContent = 'Failed to load data. Is the server running?';
+    }
+}
+
+// === Summary Cards ===
+function renderSummary(summary) {
+    const grid = document.getElementById('summaryCards');
+    const cards = [
+        { label: 'Total Return', value: summary.total_return + '%', cls: summary.total_return >= 0 ? 'positive' : 'negative' },
+        { label: 'Annual Return', value: summary.annual_return + '%', cls: summary.annual_return >= 0 ? 'positive' : 'negative' },
+        { label: 'Sharpe Ratio', value: summary.sharpe_ratio, cls: 'positive' },
+        { label: 'Max Drawdown', value: summary.max_drawdown + '%', cls: 'negative' },
+        { label: 'Total Invested', value: '$' + (summary.total_invested || 0).toLocaleString(), cls: '' },
+        { label: 'Final Value', value: '$' + (summary.final_value || 0).toLocaleString(), cls: 'positive' },
+    ];
+
+    cards.forEach(c => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+            <div class="card-label">${c.label}</div>
+            <div class="card-value ${c.cls}">${c.value}</div>
+        `;
+        grid.appendChild(card);
+    });
+}
 
 // === Equity Curve ===
+let equityChartInstance = null;
 function renderEquityChart(equityData) {
     const ctx = document.getElementById('equityChart').getContext('2d');
     const labels = equityData.map(d => d.date);
     const strategy = equityData.map(d => d.strategy);
     const spy = equityData.map(d => d.spy);
 
-    new Chart(ctx, {
+    if (equityChartInstance) equityChartInstance.destroy();
+
+    equityChartInstance = new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
@@ -238,12 +302,15 @@ function renderEquityChart(equityData) {
 }
 
 // === Drawdown ===
+let drawdownChartInstance = null;
 function renderDrawdownChart(drawdownData) {
     const ctx = document.getElementById('drawdownChart').getContext('2d');
     const labels = drawdownData.map(d => d.date);
     const values = drawdownData.map(d => d.drawdown_pct);
 
-    new Chart(ctx, {
+    if (drawdownChartInstance) drawdownChartInstance.destroy();
+
+    drawdownChartInstance = new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
@@ -312,12 +379,12 @@ function renderHeatmap(monthlyReturns) {
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const years = [...new Set(monthlyReturns.map(d => d.year))].sort();
     const tbody = document.getElementById('heatmapBody');
+    tbody.innerHTML = '';
 
     years.forEach(year => {
         const rowData = monthlyReturns.filter(d => d.year === year);
         const row = document.createElement('tr');
 
-        // Year cell
         const yearCell = document.createElement('td');
         yearCell.textContent = year;
         yearCell.style.fontWeight = '600';
@@ -339,7 +406,6 @@ function renderHeatmap(monthlyReturns) {
             row.appendChild(cell);
         });
 
-        // YTD cell
         const ytdCell = document.createElement('td');
         ytdCell.textContent = ytdSum.toFixed(2) + '%';
         ytdCell.className = ytdSum >= 0 ? 'positive' : 'negative';
@@ -349,19 +415,36 @@ function renderHeatmap(monthlyReturns) {
     });
 }
 
+// === Trades Table ===
+function renderTrades(trades) {
+    const tbody = document.getElementById('tradesBody');
+    tbody.innerHTML = '';
+
+    trades.forEach(t => {
+        const tr = document.createElement('tr');
+        const isBuy = t.side === 'BUY';
+        tr.innerHTML = `
+            <td>${t.date}</td>
+            <td><strong>${t.ticker}</strong></td>
+            <td><span class="badge-${isBuy ? 'buy' : 'sell'}">${isBuy ? '买入' : '卖出'}</span></td>
+            <td>$${t.price.toFixed(2)}</td>
+            <td>${t.shares.toFixed(4)}</td>
+            <td>$${t.amount.toFixed(2)}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
 // === Sortable Trades Table ===
 let sortDirections = {};
 
 function sortTable(colIndex) {
-    const table = document.getElementById('tradesTable');
     const tbody = document.getElementById('tradesBody');
     const rows = Array.from(tbody.querySelectorAll('tr'));
 
-    // Toggle direction
     sortDirections[colIndex] = !sortDirections[colIndex];
     const ascending = sortDirections[colIndex];
 
-    // Update header classes
     document.querySelectorAll('#tradesTable th').forEach(th => {
         th.classList.remove('sorted-asc', 'sorted-desc');
     });
@@ -374,22 +457,22 @@ function sortTable(colIndex) {
         let aVal = a.cells[colIndex].innerText.trim();
         let bVal = b.cells[colIndex].innerText.trim();
 
-        // Try numeric comparison
         const aNum = parseFloat(aVal.replace(/[$,%]/g, ''));
         const bNum = parseFloat(bVal.replace(/[$,%]/g, ''));
         if (!isNaN(aNum) && !isNaN(bNum)) {
             return ascending ? aNum - bNum : bNum - aNum;
         }
 
-        // String comparison
         return ascending
             ? aVal.localeCompare(bVal)
             : bVal.localeCompare(aVal);
     });
 
-    // Reorder DOM
     rows.forEach(row => tbody.appendChild(row));
 }
+
+// === Start ===
+loadDashboard();
 </script>
 
 </body>
