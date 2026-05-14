@@ -14,5 +14,8 @@ dependencies = [
 requires = ["setuptools>=75.0.0"]
 build-backend = "setuptools.build_meta"
 
+[project.scripts]
+hey-investment = "app:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]

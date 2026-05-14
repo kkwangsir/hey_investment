@@ -52,14 +52,17 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ```bash
 git clone git@github.com:kkwangsir/hey_investment.git
 cd hey_investment
-uv run python3 src/app.py
+uv run python src/app.py
 ```
 
-Open [http://localhost:8080](http://localhost:8080) in your browser.
+> **Windows users**: Use `python` instead of `python3`. The command above works on both platforms.
+> If the `python` command is not found, ensure Python is added to your PATH during installation.
+
+Open [http://localhost:8000](http://localhost:8000) in your browser.
 
 ```
-http://localhost:8080   → Dashboard (HTML)
-http://localhost:8080/api/data → Raw backtest data (JSON)
+http://localhost:8000   → Dashboard (HTML)
+http://localhost:8000/api/data → Raw backtest data (JSON)
 ```
 
 ---
@@ -96,7 +99,7 @@ Replace `src/data/backtest.json` with your own data. The expected schema:
     "avg_holding_days": 20.9
   },
   "equity_curve": [
-    { "date": "2024-01-01", "equity": 100000, "benchmark": 100000 }
+    { "date": "2024-01-01", "strategy": 10000, "spy": 10000 }
   ],
   "drawdown": [
     { "date": "2024-01-01", "drawdown_pct": 0 }
@@ -106,16 +109,14 @@ Replace `src/data/backtest.json` with your own data. The expected schema:
   ],
   "trades": [
     {
-      "entry_date": "2024-01-12",
-      "exit_date": "2024-01-30",
-      "symbol": "NVDA",
-      "direction": "long",
-      "entry_price": 560.0,
-      "exit_price": 628.5,
-      "shares": 17,
-      "pnl": 1164.5,
-      "pnl_pct": 12.23,
-      "holding_days": 18
+      "ticker": "NVDA",
+      "entry_date": "2024-01-15",
+      "exit_date": "2024-02-10",
+      "entry_price": 480.25,
+      "exit_price": 525.50,
+      "return_pct": 9.42,
+      "holding_days": 26,
+      "win": true
     }
   ]
 }

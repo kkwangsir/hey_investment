@@ -1,5 +1,4 @@
 import json
-import os
 from pathlib import Path
 
 import jinja2
@@ -59,7 +58,12 @@ async def index(request: Request):
     )
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Entry point for the `hey-investment` CLI command."""
     import uvicorn
 
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=False)
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=False)
+
+
+if __name__ == "__main__":
+    main()
