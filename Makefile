@@ -5,11 +5,14 @@ APP_MODULE    := src.app
 HOST          := 0.0.0.0
 PORT          := 8000
 
-.PHONY: help install run dev test lint clean data info
+.PHONY: help install sync run dev test lint clean data info format
 
 ## 📦 安装依赖
 install:
 	$(UV) sync
+
+## 🔄 同步/更新依赖（同 install）
+sync: install
 
 ## 🚀 启动开发服务器 (http://localhost:8000)
 run:
@@ -26,6 +29,10 @@ test:
 ## 🔍 Lint 检查（需要先 pip install ruff）
 lint:
 	$(UV) run ruff check src/
+
+## 🎨 格式化代码
+format:
+	$(UV) run ruff format src/
 
 ## 🧹 清理缓存文件
 clean:
