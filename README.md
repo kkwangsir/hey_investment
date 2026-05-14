@@ -65,6 +65,26 @@ http://localhost:8000   → Dashboard (HTML)
 http://localhost:8000/api/data → Raw backtest data (JSON)
 ```
 
+### Makefile 快捷命令
+
+项目自带 `Makefile`，常用的命令可以用 `make <命令>` 来执行：
+
+| 命令 | 说明 |
+|------|------|
+| `make run` | 启动开发服务器 |
+| `make dev` | 热重载模式启动 |
+| `make install` | 安装依赖 |
+| `make clean` | 清理缓存 |
+| `make data` | 查看回测数据摘要 |
+| `make help` | 显示所有命令 |
+
+```bash
+make run     # 启动
+make help    # 查看全部
+```
+
+> 💡 Windows 用户需要安装 `make`（`choco install make` 或通过 WSL）
+
 ---
 
 ## 📁 Project Structure
@@ -77,10 +97,11 @@ hey_investment/
 │   └── data/backtest.json     # Sample backtest results
 ├── static/style.css           # Dark theme styles
 ├── pyproject.toml             # uv project configuration
+├── Makefile                   # 快捷命令（make run/dev/clean）
 ├── ROADMAP.md                 # Development roadmap
-└── CHANGELOG.md               # Version history
+├── CHANGELOG.md               # Version history
+└── README.md
 ```
-
 ---
 
 ## 📊 Data Format
